@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const categoryFilters = document.querySelectorAll(".category-filter");
   const dayFilters = document.querySelectorAll(".day-filter");
   const timeFilters = document.querySelectorAll(".time-filter");
+  const difficultyFilters = document.querySelectorAll(".difficulty-filter");
 
   // Authentication elements
   const loginButton = document.getElementById("login-button");
@@ -62,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let searchQuery = "";
   let currentDay = "";
   let currentTimeRange = "";
+  let currentDifficulty = "";
 
   // Authentication state
   let currentUser = null;
@@ -473,6 +475,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // Apply difficulty filter
+      if (currentDifficulty) {
+        if ((details.difficulty || "") !== currentDifficulty) {
+          return;
+        }
+      }
+
       // Activity passed all filters, add to filtered list
       filteredActivities[name] = details;
     });
@@ -492,6 +501,26 @@ document.addEventListener("DOMContentLoaded", () => {
     Object.entries(filteredActivities).forEach(([name, details]) => {
       renderActivityCard(name, details);
     });
+  }
+
+  // Share activity on a given platform
+  function shareActivity(name, details, platform) {
+    const pageUrl = window.location.href.split("?")[0];
+    const message = `Check out "${name}" at ${SCHOOL_NAME}! ${details.description} Schedule: ${formatSchedule(details)}`;
+
+    if (platform === "twitter") {
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(pageUrl)}`;
+      window.open(twitterUrl, "_blank", "noopener,noreferrer");
+    } else if (platform === "copy") {
+      navigator.clipboard
+        .writeText(`${message} ${pageUrl}`)
+        .then(() => {
+          showMessage("Activity link copied to clipboard!", "success");
+        })
+        .catch(() => {
+          showMessage("Failed to copy link. Please try again.", "error");
+        });
+    }
   }
 
   // Function to render a single activity card
@@ -528,6 +557,11 @@ document.addEventListener("DOMContentLoaded", () => {
       </span>
     `;
 
+    // Create difficulty badge (only when difficulty is specified)
+    const difficultyHtml = details.difficulty
+      ? `<span class="difficulty-badge difficulty-${details.difficulty.toLowerCase()}">${details.difficulty}</span>`
+      : "";
+
     // Create capacity indicator
     const capacityIndicator = `
       <div class="capacity-container ${capacityStatusClass}">
@@ -543,6 +577,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     activityCard.innerHTML = `
       ${tagHtml}
+      ${difficultyHtml}
       <h4>${name}</h4>
       <p>${details.description}</p>
       <p class="tooltip">
@@ -591,6 +626,11 @@ document.addEventListener("DOMContentLoaded", () => {
         `
         }
       </div>
+      <div class="share-buttons">
+        <span class="share-label">Share:</span>
+        <button class="share-button share-twitter" title="Share on X (Twitter)" aria-label="Share on X (Twitter)">𝕏</button>
+        <button class="share-button share-copy" title="Copy link" aria-label="Copy link to clipboard">🔗</button>
+      </div>
     `;
 
     // Add click handlers for delete buttons
@@ -607,6 +647,20 @@ document.addEventListener("DOMContentLoaded", () => {
           openRegistrationModal(name);
         });
       }
+    }
+
+    // Add click handlers for share buttons
+    const twitterButton = activityCard.querySelector(".share-twitter");
+    const copyButton = activityCard.querySelector(".share-copy");
+    if (twitterButton) {
+      twitterButton.addEventListener("click", () =>
+        shareActivity(name, details, "twitter")
+      );
+    }
+    if (copyButton) {
+      copyButton.addEventListener("click", () =>
+        shareActivity(name, details, "copy")
+      );
     }
 
     activitiesList.appendChild(activityCard);
@@ -660,6 +714,19 @@ document.addEventListener("DOMContentLoaded", () => {
       // Update current time filter and fetch activities
       currentTimeRange = button.dataset.time;
       fetchActivities();
+    });
+  });
+
+  // Add event listeners for difficulty filter buttons
+  difficultyFilters.forEach((button) => {
+    button.addEventListener("click", () => {
+      // Update active class
+      difficultyFilters.forEach((btn) => btn.classList.remove("active"));
+      button.classList.add("active");
+
+      // Update current difficulty filter and display filtered activities
+      currentDifficulty = button.dataset.difficulty;
+      displayFilteredActivities();
     });
   });
 
